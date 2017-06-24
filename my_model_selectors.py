@@ -42,7 +42,7 @@ class ModelSelector(object):
         scored_num_states = ((self.score(num_states), num_states)
                              for num_states
                              in range(self.min_n_components, self.max_n_components+1))
-        valid_scored_num_states = [(s,n) for s,n in scores if s is not None]
+        valid_scored_num_states = [(s,n) for s,n in scored_num_states if s is not None]
 
         if not valid_scored_num_states:
             return None
@@ -124,6 +124,10 @@ class SelectorDIC(ModelSelector):
     def score(self, num_states):
         try:
             model = self.base_model(num_states)
+
+            if model is None:
+                return None
+
             M = len(self.words)
             log_prob_X = model.score(self.X, self.lengths)
             sum_log_prob_not_X = sum(model.score(*self.hwords[w]) for w in self.words if w != self.this_word)

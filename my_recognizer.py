@@ -18,8 +18,17 @@ def recognize(models: dict, test_set: SinglesData):
            ['WORDGUESS0', 'WORDGUESS1', 'WORDGUESS2',...]
    """
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    probabilities = []
-    guesses = []
-    # TODO implement the recognizer
-    # return probabilities, guesses
-    raise NotImplementedError
+
+    valid_models = {word: model for word,model in models.items() if model is not None}
+    probabilities = [word_probabilities(valid_models, *test_set.get_item_Xlengths(i))
+                     for i,_ in enumerate(test_set.wordlist)]
+    guesses = [best_guess(word_probs) for word_probs in probabilities]
+    return probabilities, guesses
+
+
+def word_probabilities(models, X, lengths):
+    return {word: model.score(X, lengths) for word,model in models.items()}
+
+
+def best_guess(word_probs):
+    return max(word_probs.keys(), key=lambda word: word_probs[word])
