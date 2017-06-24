@@ -27,7 +27,15 @@ def recognize(models: dict, test_set: SinglesData):
 
 
 def word_probabilities(models, X, lengths):
-    return {word: model.score(X, lengths) for word,model in models.items()}
+    word_probs = {}
+
+    for word,model in models.items():
+        try:
+            word_probs[word] = model.score(X, lengths)
+        except ValueError:  # The hmmlearn library may not be able to train or score all models.
+            word_probs[word] = float('-inf')
+
+    return word_probs
 
 
 def best_guess(word_probs):
