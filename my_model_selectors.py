@@ -1,3 +1,8 @@
+"""
+TODO:
+    * find BIC, DIC, and log-likelihood scoring methods in sklearn
+"""
+
 import math
 import statistics
 import warnings
@@ -30,6 +35,20 @@ class ModelSelector(object):
 
     def select(self):
         raise NotImplementedError
+
+    def optimal_num_states(self, optimizer=max):
+        assert optimizer is max or optimizer is min
+
+        scored_num_states = ((self.score(num_states), num_states)
+                             for num_states
+                             in range(self.min_n_components, self.max_n_components+1))
+        valid_scored_num_states = [(s,n) for s,n in scores if s is not None]
+
+        if not valid_scored_num_states:
+            return None
+        else:
+            _, opt_num_states = optimizer(valid_scored_num_states)
+            return opt_num_states
 
     def base_model(self, num_states):
         # with warnings.catch_warnings():
@@ -75,9 +94,17 @@ class SelectorBIC(ModelSelector):
         :return: GaussianHMM object
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        num_states = self.optimal_num_states(optimizer=min)
+        return None if num_states is None else self.base_model(num_states)
 
-        # TODO implement model selection based on BIC scores
-        raise NotImplementedError
+    def score(self, num_states):
+        try:
+            model = self.base_model(num_states)
+            logL, p, logN = model.score(self.X, self.lengths), num_states, math.log(len(self.X))
+            bic_score = -2 * logL + p * logN
+            return bic_score
+        except ValueError:  # The hmmlearn library may not be able to train or score all models.
+            return None
 
 
 class SelectorDIC(ModelSelector):
@@ -91,9 +118,18 @@ class SelectorDIC(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        num_states = self.optimal_num_states()
+        return None if num_states is None else self.base_model(num_states)
 
-        # TODO implement model selection based on DIC scores
-        raise NotImplementedError
+    def score(self, num_states):
+        try:
+            model = self.base_model(num_states)
+            M = len(self.words)
+            log_prob_X = model.score(self.X, self.lengths)
+            sum_log_prob_not_X = sum(model.score(*self.hwords[w]) for w in self.words if w != self.this_word)
+            return log_prob_X - (1 / (M - 1)) * sum_log_prob_not_X
+        except ValueError:  # The hmmlearn library may not be able to train or score all models.
+            return None
 
 
 class SelectorCV(ModelSelector):
@@ -102,7 +138,27 @@ class SelectorCV(ModelSelector):
     '''
 
     def select(self):
+        "() -> GaussianHMM"
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        num_states = self.optimal_num_states()
+        return None if num_states is None else self.base_model(num_states)
 
-        # TODO implement model selection using CV
-        raise NotImplementedError
+    def score(self, num_states):
+        "GaussianHMM -> float"
+        try:
+            model = self.base_model(num_states)
+            log_likelihood_scores = []
+            n_splits = min(3, len(self.sequences))
+            split_method = KFold(n_splits=n_splits, random_state=self.random_state)
+
+            for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
+                train_X, train_lengths = combine_sequences(cv_train_idx, self.sequences)
+                test_X, test_lengths =  combine_sequences(cv_test_idx, self.sequences)
+                model.fit(train_X, train_lengths)
+                split_score = model.score(test_X, test_lengths)
+                log_likelihood_scores.append(split_score)
+
+            average_log_likelihood = sum(log_likelihood_scores) / len(log_likelihood_scores)
+            return average_log_likelihood
+        except ValueError:  # The hmmlearn library may not be able to train or score all models.
+            return None
