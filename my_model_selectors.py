@@ -100,6 +100,10 @@ class SelectorBIC(ModelSelector):
     def score(self, num_states):
         try:
             model = self.base_model(num_states)
+
+            if model is None:
+                return None
+
             logL, logN = model.score(self.X, self.lengths), math.log(len(self.X))
             n_features = self.X.shape[1]
             n_params = num_states * (num_states-1) + 2 * n_features * num_states
@@ -153,6 +157,10 @@ class SelectorCV(ModelSelector):
         "GaussianHMM -> float"
         try:
             model = self.base_model(num_states)
+
+            if model is None:
+                return None
+
             log_likelihood_scores = []
             n_splits = min(3, len(self.sequences))
             split_method = KFold(n_splits=n_splits, random_state=self.random_state)
