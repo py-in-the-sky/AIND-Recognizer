@@ -22,6 +22,7 @@ RAW_2_GRAM =  [(-1.998848,   '<s>', 'ALL'), (-2.418463,   '<s>', 'ANN'), (-1.938
 # ftp://wasserstoff.informatik.rwth-aachen.de/pub/rwth-boston-104/lm/
 PROCESSED_1_GRAM = {word: likelihood for likelihood,word in RAW_1_GRAM}
 PROCESSED_2_GRAM = process_raw_2_gram(RAW_2_GRAM)
+NOT_FOUND_LIKELIHOOD = -100
 
 
 def slm_recognize(probabilities: dict, test_set: SinglesData):
@@ -45,7 +46,31 @@ def slm_recognize(probabilities: dict, test_set: SinglesData):
     def _best_sentence_interpretation(sentence, preceding_word=SENTENCE_BEGIN):
         # NOTE: all probability and LM data are log likelihoods, not actual probabilities,
         # so use addition to combine them, not multiplication.
-        pass
+        # NOTE: I use the 'L' prefix to indicate likelihoods. E.g., Lbigram means
+        # "the likelihood of this bigram."
+
+        if not sentence:
+            interpretation = (SENTENCE_END,)
+            Lword = PROCESSED_1_GRAM.get(SENTENCE_END, NOT_FOUND_LIKELIHOOD)
+            Lbigram = PROCESSED_2_GRAM.get(preceding_word, {}).get(SENTENCE_END, NOT_FOUND_LIKELIHOOD)
+            Linterpretation = Lbigram + Lword
+            return interpretation, Linterpretation
+
+        best_interpretation = None
+        Linterpretation = float('-inf')
+        current_word_id, suffix = sentence[0], sentence[1:]
+
+        for word,Lword_given_video in probabilities[current_word_id].items():
+            Lword = PROCESSED_1_GRAM.get(word, NOT_FOUND_LIKELIHOOD)
+            Lbigram = PROCESSED_2_GRAM.get(preceding_word, {}).get(word, NOT_FOUND_LIKELIHOOD)
+            suffix_interpretation, Lsuffix = _best_sentence_interpretation(suffix, preceding_word=word)
+            Loverall = Lword + Lbigram + Lword_given_video + Lsuffix
+
+            if Loverall > Linterpretation:
+                Linterpretation = Loverall
+                best_interpretation = (word,) + suffix_interpretation
+
+        return best_interpretation, Linterpretation
 
     sentences = sorted(test_set.sentences_index.items())  # Sort so that word guesses align with word_ids.
     sentence_guesses = (_best_sentence_interpretation(tuple(sentence))[0]
