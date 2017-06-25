@@ -72,12 +72,15 @@ NOT_FOUND_LIKELIHOOD = -100
 def slm_recognize(probabilities: dict, test_set: SinglesData):
     warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-    @lru_cache
+    @lru_cache()
     def _best_sentence_interpretation(sentence, preceding_word=SENTENCE_BEGIN):
         # NOTE: all probability and LM data are log likelihoods, not actual probabilities,
         # so use addition to combine them, not multiplication.
         # NOTE: I use the 'L' prefix to indicate likelihoods. E.g., Lbigram means
         # "the likelihood of this bigram."
+
+        print(preceding_word)
+        print(sentence)
 
         if not sentence:
             Lword = PROCESSED_1_GRAM.get(SENTENCE_END, NOT_FOUND_LIKELIHOOD)
