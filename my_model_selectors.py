@@ -100,8 +100,10 @@ class SelectorBIC(ModelSelector):
     def score(self, num_states):
         try:
             model = self.base_model(num_states)
-            logL, p, logN = model.score(self.X, self.lengths), num_states, math.log(len(self.X))
-            bic_score = -2 * logL + p * logN
+            logL, logN = model.score(self.X, self.lengths), math.log(len(self.X))
+            n_features = self.X.shape[1]
+            n_params = num_states * (num_states-1) + 2 * n_features * num_states
+            bic_score = -2 * logL + n_params * logN
             return bic_score
         except ValueError:  # The hmmlearn library may not be able to train or score all models.
             return None
