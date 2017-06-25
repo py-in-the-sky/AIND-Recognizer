@@ -80,11 +80,10 @@ def slm_recognize(probabilities: dict, test_set: SinglesData):
         # "the likelihood of this bigram."
 
         if not sentence:
-            interpretation = (SENTENCE_END,)
             Lword = PROCESSED_1_GRAM.get(SENTENCE_END, NOT_FOUND_LIKELIHOOD)
             Lbigram = PROCESSED_2_GRAM.get(preceding_word, {}).get(SENTENCE_END, NOT_FOUND_LIKELIHOOD)
             Linterpretation = Lbigram + Lword
-            return interpretation, Linterpretation
+            return (), Linterpretation
 
         best_interpretation = None
         Linterpretation = float('-inf')
@@ -99,6 +98,8 @@ def slm_recognize(probabilities: dict, test_set: SinglesData):
             if Loverall > Linterpretation:
                 Linterpretation = Loverall
                 best_interpretation = (word,) + suffix_interpretation
+
+        assert len(best_interpretation) == len(sentence), "best_interpretation is not the same length as sentence."
 
         return best_interpretation, Linterpretation
 
